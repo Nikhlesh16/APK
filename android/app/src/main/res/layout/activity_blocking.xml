@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#111827">
+
+    <TextView
+        android:id="@+id/blocking_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Focus Mode Active"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="32sp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/blocking_message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="#E5E7EB"
+        android:textSize="18sp"
+        android:gravity="center" />
+
+    <EditText
+        android:id="@+id/pin_input"
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:background="#FFFFFF"
+        android:ems="4"
+        android:gravity="center"
+        android:hint="Enter 4-digit PIN"
+        android:inputType="numberPassword"
+        android:maxLength="4"
+        android:padding="10dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/pin_unlock_button"
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Unlock App"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/choose_app_button"
+        android:layout_width="260dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Choose App For This Unlock"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/live_free_button"
+        android:layout_width="260dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Live Free (No Restrictions)"
+        android:visibility="gone" />
+</LinearLayout>

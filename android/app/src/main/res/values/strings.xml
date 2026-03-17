@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">FocusModeBlocker</string>
+    <string name="accessibility_service_description">Focus mode accessibility helper</string>
+</resources>

@@ -1,0 +1,10 @@
+adb install -r ".\android\app\build\outputs\apk\release\app-release.apk"
+
+
+
+
+Set-Location e:\Products\APK\APK\APK\FocusModeBlocker\android; .\gradlew.bat assembleRelease; adb install -r ".\app\build\outputs\apk\release\app-release.apk"
+
+
+
+
