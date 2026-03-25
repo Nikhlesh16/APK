@@ -151,8 +151,33 @@ Release build + install in one command:
 Set-Location e:\Products\APK\APK\APK\FocusModeBlocker\android; .\gradlew.bat assembleRelease; adb install -r ".\app\build\outputs\apk\release\app-release.apk"
 ```
 
+Release AAB (Google Play Console):
+
+```powershell
+Set-Location e:\Products\APK\APK\APK\FocusModeBlocker\android; .\gradlew.bat bundleRelease
+```
+
 Output APK:
 
 ```text
 android/app/build/outputs/apk/release/app-release.apk
 ```
+
+Output AAB:
+
+```text
+android/app/build/outputs/bundle/release/app-release.aab
+```
+
+## Policy Pages For Play Console
+
+Prepared policy pages are available in:
+
+```text
+policies/privacy-policy.html
+policies/terms-and-conditions.html
+policies/data-deletion.html
+policies/accessibility-disclosure.html
+```
+
+Before publishing, replace placeholder contact email (`replace-with-your-email@example.com`) in these files with your real support email.

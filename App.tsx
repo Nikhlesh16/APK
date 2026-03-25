@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {
+  AppState,
   Alert,
   Modal,
   Pressable,
@@ -34,17 +35,21 @@ function App() {
   const [uninstallGuardEnabled, setUninstallGuardEnabled] = useState(true);
   const [deviceAdminEnabled, setDeviceAdminEnabled] = useState(false);
   const [hasAppPin, setHasAppPin] = useState(false);
+  const [isFocusModeRunning, setIsFocusModeRunning] = useState(false);
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [unlockModalVisible, setUnlockModalVisible] = useState(false);
+  const [unlockPinInput, setUnlockPinInput] = useState('');
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
   const refreshPermissions = useCallback(async () => {
-    const [usage, overlay, accessibility, adminEnabled, pinConfigured] = await Promise.all([
+    const [usage, overlay, accessibility, adminEnabled, pinConfigured, serviceRunning] = await Promise.all([
       nativeModule.hasUsageAccess(),
       nativeModule.canDrawOverlays(),
       nativeModule.isAccessibilityEnabled(),
       nativeModule.isDeviceAdminEnabled(),
       nativeModule.hasAppLockPin(),
+      nativeModule.isMonitoringServiceRunning(),
     ]);
 
     setUsageAccess(usage);
@@ -52,16 +57,18 @@ function App() {
     setAccessibilityEnabled(accessibility);
     setDeviceAdminEnabled(adminEnabled);
     setHasAppPin(pinConfigured);
+    setIsFocusModeRunning(serviceRunning);
   }, []);
 
   const loadData = useCallback(async () => {
-    const [savedRules, apps, report, uninstallGuard, adminEnabled, pinConfigured] = await Promise.all([
+    const [savedRules, apps, report, uninstallGuard, adminEnabled, pinConfigured, serviceRunning] = await Promise.all([
       getRules(),
       nativeModule.getInstalledApps(),
       nativeModule.getTodayUsageReport(),
       nativeModule.getUninstallProtectionEnabled(),
       nativeModule.isDeviceAdminEnabled(),
       nativeModule.hasAppLockPin(),
+      nativeModule.isMonitoringServiceRunning(),
     ]);
     setRules(savedRules);
     setInstalledApps(apps);
@@ -69,6 +76,8 @@ function App() {
     setUninstallGuardEnabled(uninstallGuard);
     setDeviceAdminEnabled(adminEnabled);
     setHasAppPin(pinConfigured);
+    setIsFocusModeRunning(serviceRunning);
+    setUnlockModalVisible(pinConfigured);
     await syncRules(savedRules);
 
     const hasEnabledRules = savedRules.some(rule => rule.enabled);
@@ -79,6 +88,7 @@ function App() {
 
     if (hasEnabledRules && (usage || accessibility)) {
       await nativeModule.startMonitoringService();
+      setIsFocusModeRunning(true);
     }
   }, []);
 
@@ -86,6 +96,19 @@ function App() {
     refreshPermissions();
     loadData();
   }, [loadData, refreshPermissions]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active' && hasAppPin) {
+        setUnlockPinInput('');
+        setUnlockModalVisible(true);
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [hasAppPin]);
 
   async function handleSaveRule(rule: Rule) {
     const latestRules = await getRules();
@@ -104,6 +127,7 @@ function App() {
     ]);
     if (updated.some(item => item.enabled) && (usage || accessibility)) {
       await nativeModule.startMonitoringService();
+      setIsFocusModeRunning(true);
     }
 
     Alert.alert('Saved', existing ? 'Rule has been updated.' : 'Rule has been added.');
@@ -136,8 +160,10 @@ function App() {
 
     if (hasEnabledRules && (usage || accessibility)) {
       await nativeModule.startMonitoringService();
+      setIsFocusModeRunning(true);
     } else {
       await nativeModule.stopMonitoringService();
+      setIsFocusModeRunning(false);
     }
   }
 
@@ -169,8 +195,10 @@ function App() {
 
           if (hasEnabledRules && (usage || accessibility)) {
             await nativeModule.startMonitoringService();
+            setIsFocusModeRunning(true);
           } else {
             await nativeModule.stopMonitoringService();
+            setIsFocusModeRunning(false);
           }
         },
       },
@@ -192,8 +220,14 @@ function App() {
   }
 
   async function startFocusMode() {
+    if (isFocusModeRunning) {
+      Alert.alert('Already Running', 'Focus mode is already active.');
+      return;
+    }
+
     await syncRules(rules);
     const started = await nativeModule.startMonitoringService();
+    setIsFocusModeRunning(started);
     Alert.alert(
       started ? 'Focus Mode Started' : 'Start Failed',
       started
@@ -203,7 +237,13 @@ function App() {
   }
 
   async function stopFocusMode() {
+    if (!isFocusModeRunning) {
+      Alert.alert('Already Stopped', 'Focus mode is not running right now.');
+      return;
+    }
+
     const stopped = await nativeModule.stopMonitoringService();
+    setIsFocusModeRunning(!stopped);
     Alert.alert(
       stopped ? 'Focus Mode Stopped' : 'Stop Failed',
       stopped
@@ -268,7 +308,25 @@ function App() {
     setHasAppPin(true);
     setPinInput('');
     setPinModalVisible(false);
+    setUnlockModalVisible(false);
     Alert.alert('Saved', 'App PIN has been updated.');
+  }
+
+  async function unlockThisApp() {
+    const pin = unlockPinInput.trim();
+    if (!/^\d{4}$/.test(pin)) {
+      Alert.alert('Invalid PIN', 'PIN must be exactly 4 digits.');
+      return;
+    }
+
+    const ok = await nativeModule.verifyAppLockPin(pin);
+    if (!ok) {
+      Alert.alert('Wrong PIN', 'PIN is incorrect.');
+      return;
+    }
+
+    setUnlockPinInput('');
+    setUnlockModalVisible(false);
   }
 
   return (
@@ -340,11 +398,25 @@ function App() {
 
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Active Session Control</Text>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Service Status</Text>
+              <Text style={[styles.statusValue, isFocusModeRunning ? styles.statusRunning : styles.statusStopped]}>
+                {isFocusModeRunning ? 'RUNNING' : 'STOPPED'}
+              </Text>
+            </View>
             <View style={styles.focusButtonsRow}>
-              <Pressable style={styles.primaryButton} onPress={startFocusMode}>
-                <Text style={styles.primaryButtonText}>Start Focus Mode</Text>
+              <Pressable
+                style={[styles.primaryButton, isFocusModeRunning && styles.buttonDisabled]}
+                disabled={isFocusModeRunning}
+                onPress={startFocusMode}>
+                <Text style={styles.primaryButtonText}>
+                  {isFocusModeRunning ? 'Focus Running' : 'Start Focus Mode'}
+                </Text>
               </Pressable>
-              <Pressable style={styles.stopButton} onPress={stopFocusMode}>
+              <Pressable
+                style={[styles.stopButton, !isFocusModeRunning && styles.buttonDisabled]}
+                disabled={!isFocusModeRunning}
+                onPress={stopFocusMode}>
                 <Text style={styles.primaryButtonText}>Stop</Text>
               </Pressable>
               <Pressable style={styles.reportButton} onPress={refreshReport}>
@@ -415,6 +487,29 @@ function App() {
               </Pressable>
               <Pressable style={styles.pinPrimaryButton} onPress={saveAppPin}>
                 <Text style={styles.pinPrimaryButtonText}>Save PIN</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={unlockModalVisible} transparent animationType="fade">
+        <View style={styles.pinModalBackdrop}>
+          <View style={styles.pinModalCard}>
+            <Text style={styles.pinModalTitle}>Enter App PIN</Text>
+            <Text style={styles.pinHelpText}>This app is PIN protected.</Text>
+            <TextInput
+              value={unlockPinInput}
+              onChangeText={setUnlockPinInput}
+              keyboardType="number-pad"
+              maxLength={4}
+              secureTextEntry
+              style={styles.pinInput}
+              placeholder="1234"
+            />
+            <View style={styles.pinActionsRow}>
+              <Pressable style={styles.pinPrimaryButton} onPress={unlockThisApp}>
+                <Text style={styles.pinPrimaryButtonText}>Unlock</Text>
               </Pressable>
             </View>
           </View>
@@ -507,6 +602,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     marginTop: 0,
   },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusLabel: {
+    color: '#374151',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  statusValue: {
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  statusRunning: {
+    color: '#166534',
+  },
+  statusStopped: {
+    color: '#991b1b',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
   primaryButton: {
     flex: 1,
     backgroundColor: '#111827',
@@ -577,6 +696,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111',
+  },
+  pinHelpText: {
+    marginTop: 6,
+    color: '#4b5563',
+    fontSize: 13,
   },
   pinInput: {
     marginTop: 12,

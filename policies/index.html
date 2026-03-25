@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusModeBlocker Policy Center</title>
+  <style>
+    :root {
+      --bg: #f4f7ff;
+      --card: #ffffff;
+      --text: #1f2a44;
+      --muted: #52607a;
+      --accent: #0b63f6;
+      --border: #d7def0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top left, #e8f0ff, var(--bg) 45%);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .card {
+      width: min(700px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 12px 28px rgba(16, 24, 40, 0.1);
+    }
+    h1 { margin: 0 0 8px; color: var(--accent); }
+    p { margin: 0 0 18px; color: var(--muted); }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+    a {
+      display: block;
+      text-decoration: none;
+      color: #0b4ac9;
+      background: #f7faff;
+      border: 1px solid #d9e5ff;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-weight: 600;
+    }
+    a:hover { background: #eef5ff; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>FocusModeBlocker Policy Center</h1>
+    <p>Use the links below for app listing and policy references.</p>
+    <ul>
+      <li><a href="privacy-policy.html">Privacy Policy</a></li>
+      <li><a href="terms-and-conditions.html">Terms and Conditions</a></li>
+      <li><a href="data-deletion.html">Data Deletion Instructions</a></li>
+      <li><a href="accessibility-disclosure.html">Accessibility Disclosure</a></li>
+    </ul>
+  </main>
+</body>
+</html>

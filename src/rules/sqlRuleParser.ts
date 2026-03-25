@@ -75,6 +75,8 @@ function assertTime(value: string): string {
 }
 
 export function buildSqlFromRule(rule: Rule): string {
+  const enabledPredicate = ` AND enabled = ${rule.enabled ? 'TRUE' : 'FALSE'}`;
+
   if (rule.ruleType === 'continuous_usage_rule') {
     const dayNames = rule.days
       .map(day => {
@@ -107,7 +109,8 @@ export function buildSqlFromRule(rule: Rule): string {
       ` AND package_name = '${rule.packageName}'` +
       ` AND day_of_week IN ('${dayNames}')` +
       `${timePredicate}${thresholdPredicate}${intervalPredicate}${usagePredicate}${pinPredicate}` +
-      ` AND action = '${rule.action ?? 'block_app'}';`
+      ` AND action = '${rule.action ?? 'block_app'}'` +
+      `${enabledPredicate};`
     );
   }
 
@@ -117,7 +120,8 @@ export function buildSqlFromRule(rule: Rule): string {
       ` AND threshold_minutes = ${rule.thresholdMinutes ?? 420}` +
       ` AND interval_minutes = ${rule.intervalMinutes ?? 5}` +
       ` AND alert_type = '${rule.alertType ?? 'notification'}'` +
-      ` AND action = '${rule.action ?? 'show_notification'}';`
+      ` AND action = '${rule.action ?? 'show_notification'}'` +
+      `${enabledPredicate};`
     );
   }
 
@@ -127,7 +131,8 @@ export function buildSqlFromRule(rule: Rule): string {
       'SELECT * FROM apps WHERE rule_type = \'app_dependency_rule\'' +
       ` AND trigger_app = '${rule.triggerAppPackage ?? ''}'` +
       ` AND restricted_apps IN ('${restricted}')` +
-      ` AND action = '${rule.action ?? 'restrict_switching'}';`
+      ` AND action = '${rule.action ?? 'restrict_switching'}'` +
+      `${enabledPredicate};`
     );
   }
 
@@ -135,7 +140,8 @@ export function buildSqlFromRule(rule: Rule): string {
     const liveFree = rule.liveFreeOption ?? true;
     return (
       'SELECT * FROM apps WHERE phone_unlock_choice_mode = TRUE' +
-      ` AND live_free = ${liveFree ? 'TRUE' : 'FALSE'};`
+      ` AND live_free = ${liveFree ? 'TRUE' : 'FALSE'}` +
+      `${enabledPredicate};`
     );
   }
 
@@ -162,7 +168,8 @@ export function buildSqlFromRule(rule: Rule): string {
   return (
     `SELECT * FROM apps WHERE package_name = '${rule.packageName}'` +
     ` AND day_of_week IN ('${dayNames}')` +
-    `${timePredicate}${usagePredicate}${pinPredicate};`
+    `${timePredicate}${usagePredicate}${pinPredicate}` +
+    `${enabledPredicate};`
   );
 }
 

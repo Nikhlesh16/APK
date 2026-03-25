@@ -42,6 +42,10 @@ object RuleEvaluator {
   private const val PREVIOUS_FOREGROUND_PACKAGE_KEY = "previous_foreground_package"
   private const val CURRENT_FOREGROUND_START_TS_KEY = "current_foreground_start_ts"
   private const val LAST_UNLOCK_TIME_KEY = "last_unlock_time"
+  private const val LAST_ACTIVITY_TS_KEY = "last_activity_time"
+  private const val SCREEN_STATE_KEY = "screen_state"
+  private const val SCREEN_STATE_UNLOCKED = "unlocked"
+  private const val SCREEN_STATE_OFF = "screen_off"
   private const val CONTINUOUS_LOCK_PREFIX = "continuous_lock_until_"
 
   fun onUserPresent(context: Context) {
@@ -51,7 +55,11 @@ object RuleEvaluator {
     )
 
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit().putLong(LAST_UNLOCK_TIME_KEY, System.currentTimeMillis()).apply()
+    prefs.edit()
+      .putLong(LAST_UNLOCK_TIME_KEY, System.currentTimeMillis())
+      .putLong(LAST_ACTIVITY_TS_KEY, System.currentTimeMillis())
+      .putString(SCREEN_STATE_KEY, SCREEN_STATE_UNLOCKED)
+      .apply()
 
     if (!hasPhoneUnlockChoiceRuleEnabled(context)) {
       return
@@ -67,6 +75,10 @@ object RuleEvaluator {
   fun onForegroundPackageChanged(context: Context, packageName: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = prefs.getString(CURRENT_FOREGROUND_PACKAGE_KEY, null)
+    prefs.edit()
+      .putLong(LAST_ACTIVITY_TS_KEY, System.currentTimeMillis())
+      .putString(SCREEN_STATE_KEY, SCREEN_STATE_UNLOCKED)
+      .apply()
     if (current == packageName) {
       return
     }
@@ -78,10 +90,27 @@ object RuleEvaluator {
       .apply()
   }
 
+  fun recordActivityHeartbeat(context: Context) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val screenState = prefs.getString(SCREEN_STATE_KEY, SCREEN_STATE_UNLOCKED) ?: SCREEN_STATE_UNLOCKED
+    if (screenState == SCREEN_STATE_OFF) {
+      return
+    }
+
+    prefs.edit().putLong(LAST_ACTIVITY_TS_KEY, System.currentTimeMillis()).apply()
+  }
+
   fun evaluateInactivityAlert(context: Context, nowMs: Long): InactivityAlertDecision {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val lastUnlock = prefs.getLong(LAST_UNLOCK_TIME_KEY, 0L)
-    if (lastUnlock <= 0L) {
+    val lastActivity = prefs.getLong(LAST_ACTIVITY_TS_KEY, 0L)
+    val screenState = prefs.getString(SCREEN_STATE_KEY, SCREEN_STATE_UNLOCKED) ?: SCREEN_STATE_UNLOCKED
+    val baseline = if (screenState == SCREEN_STATE_OFF) {
+      lastUnlock
+    } else {
+      maxOf(lastUnlock, lastActivity)
+    }
+    if (baseline <= 0L) {
       return InactivityAlertDecision(shouldAlert = false)
     }
 
@@ -100,7 +129,7 @@ object RuleEvaluator {
         continue
       }
 
-      val elapsed = nowMs - lastUnlock
+      val elapsed = nowMs - baseline
       if (elapsed < thresholdMinutes * 60_000L) {
         continue
       }
@@ -134,6 +163,7 @@ object RuleEvaluator {
 
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     prefs.edit()
+      .putString(SCREEN_STATE_KEY, SCREEN_STATE_OFF)
       .putBoolean(SESSION_PENDING_KEY, false)
       .remove(SESSION_SELECTED_PACKAGE_KEY)
       .putBoolean(SESSION_LIVE_FREE_KEY, false)
@@ -426,6 +456,16 @@ object RuleEvaluator {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     prefs.edit().putString(PIN_KEY, pin).apply()
     return true
+  }
+
+  fun verifyPin(context: Context, pin: String): Boolean {
+    if (pin.length != 4 || !pin.all { it.isDigit() }) {
+      return false
+    }
+
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val current = prefs.getString(PIN_KEY, "") ?: ""
+    return current == pin
   }
 
   fun verifyPinAndUnlockPackage(context: Context, packageName: String, pin: String): Boolean {

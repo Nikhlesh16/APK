@@ -11,6 +11,7 @@ type FocusModeNativeModule = {
   getTodayUsageReport: () => Promise<UsageSummary[]>;
   startMonitoringService: () => Promise<boolean>;
   stopMonitoringService: () => Promise<boolean>;
+  isMonitoringServiceRunning: () => Promise<boolean>;
   hasUsageAccess: () => Promise<boolean>;
   openUsageAccessSettings: () => Promise<void>;
   canDrawOverlays: () => Promise<boolean>;
@@ -24,6 +25,7 @@ type FocusModeNativeModule = {
   requestDeviceAdminEnable: () => Promise<boolean>;
   hasAppLockPin: () => Promise<boolean>;
   setAppLockPin: (pin: string) => Promise<boolean>;
+  verifyAppLockPin: (pin: string) => Promise<boolean>;
 };
 
 const noopModule: FocusModeNativeModule = {
@@ -31,6 +33,7 @@ const noopModule: FocusModeNativeModule = {
   getTodayUsageReport: async () => [],
   startMonitoringService: async () => false,
   stopMonitoringService: async () => false,
+  isMonitoringServiceRunning: async () => false,
   hasUsageAccess: async () => false,
   openUsageAccessSettings: async () => undefined,
   canDrawOverlays: async () => false,
@@ -44,6 +47,7 @@ const noopModule: FocusModeNativeModule = {
   requestDeviceAdminEnable: async () => false,
   hasAppLockPin: async () => false,
   setAppLockPin: async () => false,
+  verifyAppLockPin: async () => false,
 };
 
 const nativeModule: FocusModeNativeModule =

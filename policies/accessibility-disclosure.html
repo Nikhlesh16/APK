@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accessibility Disclosure | FocusModeBlocker</title>
+  <style>
+    :root {
+      --bg: #f8f7ff;
+      --card: #ffffff;
+      --text: #1e1b4b;
+      --muted: #5b5b8a;
+      --accent: #1d4ed8;
+      --border: #d9d7f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #ecebff 0%, var(--bg) 40%);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+    }
+    h1 { margin-top: 0; color: var(--accent); }
+    h2 { margin-top: 24px; color: #1e40af; }
+    .meta { color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>Accessibility Permission Disclosure</h1>
+      <p class="meta">App: FocusModeBlocker | Updated: 2026-03-25</p>
+
+      <h2>Why Accessibility Is Used</h2>
+      <p>
+        FocusModeBlocker uses Android AccessibilityService only to detect app context and enforce user-configured focus
+        restrictions (for example, app blocking during active focus rules).
+      </p>
+
+      <h2>What Data Is Accessed</h2>
+      <p>
+        The service may process accessibility events needed to identify foreground transitions and interaction signals
+        required for rule automation.
+      </p>
+
+      <h2>What We Do Not Do</h2>
+      <p>
+        We do not use accessibility data for advertising, profiling, or selling data. Data is not used to track users
+        across apps for commercial targeting.
+      </p>
+
+      <h2>User Control</h2>
+      <p>
+        You can disable AccessibilityService for this app anytime from Android Accessibility settings.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

@@ -22,6 +22,8 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 
 class ForegroundMonitorService : Service() {
+  private val prefsName = "focus_mode_prefs"
+  private val serviceRunningKey = "monitoring_service_running"
   private val handler = Handler(Looper.getMainLooper())
   private val monitorIntervalMs = 3000L
   private var lastBlockedPackage: String? = null
@@ -30,6 +32,8 @@ class ForegroundMonitorService : Service() {
   private var lastInactivityAlertAt: Long = 0
   private var lastObservedForeground: String? = null
   private var lastForegroundStartAt: Long = 0
+  private var lastKnownForeground: String? = null
+  private var lastFallbackLookupAt: Long = 0
   private val alarmAction = "com.focusmodeblocker.HEARTBEAT_WAKE"
 
   private val screenStateReceiver = object : BroadcastReceiver() {
@@ -39,7 +43,10 @@ class ForegroundMonitorService : Service() {
           RuleEvaluator.onUserPresent(applicationContext)
           maybeLaunchUnlockChoicePrompt()
         }
-        Intent.ACTION_SCREEN_OFF -> RuleEvaluator.onScreenOff(applicationContext)
+        Intent.ACTION_SCREEN_OFF -> {
+          lastKnownForeground = null
+          RuleEvaluator.onScreenOff(applicationContext)
+        }
       }
     }
   }
@@ -47,20 +54,41 @@ class ForegroundMonitorService : Service() {
   private val monitorTask = object : Runnable {
     override fun run() {
       try {
-        val packageName = getForegroundAppPackageName() ?: getLikelyCurrentForegroundPackage()
+        val now = System.currentTimeMillis()
+        var packageName = getForegroundAppPackageName()
+        var hasFreshForegroundSignal = !packageName.isNullOrBlank()
+
+        if (packageName.isNullOrBlank()) {
+          if (now - lastFallbackLookupAt >= 12_000L) {
+            lastFallbackLookupAt = now
+            packageName = getLikelyCurrentForegroundPackage()
+            if (!packageName.isNullOrBlank()) {
+              lastKnownForeground = packageName
+              hasFreshForegroundSignal = true
+            } else {
+              // No recent foreground signal. Clear cached app to avoid stale activity heartbeats.
+              lastKnownForeground = null
+            }
+          } else {
+            packageName = lastKnownForeground
+          }
+        } else {
+          lastKnownForeground = packageName
+        }
+
         if (!packageName.isNullOrBlank() && packageName != applicationContext.packageName) {
           if (lastObservedForeground != packageName) {
-            val now = System.currentTimeMillis()
+            val changeTs = System.currentTimeMillis()
             val previous = lastObservedForeground
             if (!previous.isNullOrBlank() && lastForegroundStartAt > 0L) {
               AutomationDatabaseHelper
                 .getInstance(applicationContext)
-                .insertUsageEvent(previous, lastForegroundStartAt, now)
+                .insertUsageEvent(previous, lastForegroundStartAt, changeTs)
             }
 
             RuleEvaluator.onForegroundPackageChanged(applicationContext, packageName)
             lastObservedForeground = packageName
-            lastForegroundStartAt = now
+            lastForegroundStartAt = changeTs
           }
           val decision = RuleEvaluator.evaluatePackage(applicationContext, packageName)
           if (decision.blocked) {
@@ -84,6 +112,12 @@ class ForegroundMonitorService : Service() {
 
   override fun onCreate() {
     super.onCreate()
+    RuleEvaluator.recordActivityHeartbeat(applicationContext)
+    getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+      .edit()
+      .putBoolean(serviceRunningKey, true)
+      .apply()
+
     createNotificationChannel()
     startForeground(1001, createNotification())
     scheduleHeartbeatAlarm()
@@ -100,6 +134,11 @@ class ForegroundMonitorService : Service() {
   override fun onDestroy() {
     handler.removeCallbacks(monitorTask)
     cancelHeartbeatAlarm()
+    getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+      .edit()
+      .putBoolean(serviceRunningKey, false)
+      .apply()
+
     val packageName = lastObservedForeground
     if (!packageName.isNullOrBlank() && lastForegroundStartAt > 0L) {
       AutomationDatabaseHelper
@@ -120,8 +159,14 @@ class ForegroundMonitorService : Service() {
         "Focus Mode Monitor",
         NotificationManager.IMPORTANCE_LOW,
       )
+      val alertsChannel = NotificationChannel(
+        "focus_mode_alerts",
+        "Focus Mode Alerts",
+        NotificationManager.IMPORTANCE_DEFAULT,
+      )
       val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
       manager.createNotificationChannel(channel)
+      manager.createNotificationChannel(alertsChannel)
     }
   }
 
@@ -232,10 +277,11 @@ class ForegroundMonitorService : Service() {
     }
 
     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    val notification = NotificationCompat.Builder(this, "focus_mode_channel")
+    val notification = NotificationCompat.Builder(this, "focus_mode_alerts")
       .setContentTitle("Inactivity Alert")
       .setContentText(decision.message)
       .setSmallIcon(android.R.drawable.ic_dialog_alert)
+      .setPriority(NotificationCompat.PRIORITY_HIGH)
       .setAutoCancel(true)
       .build()
     manager.notify(1999, notification)

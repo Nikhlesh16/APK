@@ -77,6 +77,10 @@ class FocusAccessibilityService : AccessibilityService() {
       return
     }
 
+    if (isUserInteractionEvent(event.eventType)) {
+      RuleEvaluator.recordActivityHeartbeat(applicationContext)
+    }
+
     val now = System.currentTimeMillis()
     if (
       (isUninstallAttemptForThisApp(event, packageName) ||
@@ -168,6 +172,12 @@ class FocusAccessibilityService : AccessibilityService() {
   }
 
   override fun onInterrupt() {
+  }
+
+  private fun isUserInteractionEvent(eventType: Int): Boolean {
+    return eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
+      eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
+      eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
   }
 
   private fun shouldBlockUninstall(): Boolean {

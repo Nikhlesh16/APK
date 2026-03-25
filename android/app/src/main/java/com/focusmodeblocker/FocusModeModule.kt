@@ -21,6 +21,7 @@ import com.facebook.react.bridge.ReadableArray
 class FocusModeModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
   private val prefsName = "focus_mode_prefs"
   private val uninstallGuardKey = "uninstall_guard_enabled"
+  private val serviceRunningKey = "monitoring_service_running"
 
   override fun getName(): String = "FocusModeModule"
 
@@ -82,6 +83,16 @@ class FocusModeModule(private val context: ReactApplicationContext) : ReactConte
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("STOP_SERVICE_ERROR", e)
+    }
+  }
+
+  @ReactMethod
+  fun isMonitoringServiceRunning(promise: Promise) {
+    try {
+      val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+      promise.resolve(prefs.getBoolean(serviceRunningKey, false))
+    } catch (e: Exception) {
+      promise.reject("SERVICE_STATUS_ERROR", e)
     }
   }
 
@@ -164,6 +175,15 @@ class FocusModeModule(private val context: ReactApplicationContext) : ReactConte
       promise.resolve(ok)
     } catch (e: Exception) {
       promise.reject("PIN_SET_ERROR", e)
+    }
+  }
+
+  @ReactMethod
+  fun verifyAppLockPin(pin: String, promise: Promise) {
+    try {
+      promise.resolve(RuleEvaluator.verifyPin(context, pin))
+    } catch (e: Exception) {
+      promise.reject("PIN_VERIFY_ERROR", e)
     }
   }
 
